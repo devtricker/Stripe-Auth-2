@@ -49,10 +49,14 @@ def check_card():
     # Handle POST (JSON) and GET (Query Params)
     if request.method == 'POST':
         data = request.get_json()
-        folder_cc = data.get('cc') if data else None
+        if data:
+            # Check for 'cc', 'card', or 'card_number'
+            folder_cc = data.get('cc') or data.get('card') or data.get('card_number')
+        else:
+            folder_cc = None
     else:
-        # URL Format: /check?cc=4532...|05|26|020
-        folder_cc = request.args.get('cc')
+        # URL Format: /check?cc=4532...
+        folder_cc = request.args.get('cc') or request.args.get('card')
     
     if not folder_cc:
         return jsonify({
