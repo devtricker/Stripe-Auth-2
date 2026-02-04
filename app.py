@@ -44,10 +44,15 @@ def parseX(data, start, end):
     except ValueError:
         return "None"
 
-@app.route('/check', methods=['GET'])
+@app.route('/check', methods=['GET', 'POST'])
 def check_card():
-    # URL Format: /check?cc=4532...|05|26|020
-    folder_cc = request.args.get('cc')
+    # Handle POST (JSON) and GET (Query Params)
+    if request.method == 'POST':
+        data = request.get_json()
+        folder_cc = data.get('cc') if data else None
+    else:
+        # URL Format: /check?cc=4532...|05|26|020
+        folder_cc = request.args.get('cc')
     
     if not folder_cc:
         return jsonify({
