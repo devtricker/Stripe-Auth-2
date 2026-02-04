@@ -47,16 +47,28 @@ def parseX(data, start, end):
 @app.route('/check', methods=['GET', 'POST'])
 def check_card():
     # Handle POST (JSON) and GET (Query Params)
-    if request.method == 'POST':
-        data = request.get_json()
-        if data:
-            # Check for 'cc', 'card', or 'card_number'
-            folder_cc = data.get('cc') or data.get('card') or data.get('card_number')
+    try:
+        if request.method == 'POST':
+            data = request.get_json()
+            if data:
+                # Check if fields are separate
+                if 'card_number' in data and 'exp_month' in data:
+                    cc = data.get('card_number')
+                    mon = data.get('exp_month')
+                    year = data.get('exp_year')
+                    cvv = data.get('cvv')
+                    folder_cc = f"{cc}|{mon}|{year}|{cvv}"
+                else:
+                    # Check for single string 'cc', 'card'
+                    folder_cc = data.get('cc') or data.get('card')
+            else:
+                folder_cc = None
         else:
-            folder_cc = None
-    else:
-        # URL Format: /check?cc=4532...
-        folder_cc = request.args.get('cc') or request.args.get('card')
+            # GET Request
+            folder_cc = request.args.get('cc') or request.args.get('card')
+            
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Request Error: {str(e)}"})
     
     if not folder_cc:
         return jsonify({
