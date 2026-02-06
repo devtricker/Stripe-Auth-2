@@ -46,6 +46,14 @@ def parseX(data, start, end):
 
 @app.route('/check', methods=['GET', 'POST'])
 def check_card():
+    # Debug information
+    print("🔔 Headers:", dict(request.headers))
+    print("🔔 Args:", dict(request.args))
+    print("🔔 Values:", dict(request.values))
+    try:
+        print("🔔 JSON:", request.get_json(silent=True))
+    except: pass
+    
     # URL Format: /check?cc=4532...|05|26|020
     folder_cc = request.args.get('cc')
     
@@ -56,9 +64,19 @@ def check_card():
             folder_cc = request.values.get('cc') or request.values.get('card') or request.values.get('lista')
     
     if not folder_cc:
+        try:
+            # Try to populate folder_cc from raw data if it looks like a CC line
+            data_str = request.get_data(as_text=True)
+            print("🔔 Raw Data:", data_str)
+            match = re.search(r'\d{13,19}\|\d{1,2}\|\d{2,4}\|\d{3,4}', data_str)
+            if match:
+                folder_cc = match.group(0)
+        except: pass
+
+    if not folder_cc:
         return jsonify({
             "status": "error",
-            "message": "❌ Give me CC! Format: /check?cc=cc|mm|yy|cvv"
+            "message": f"❌ Give me CC! keys received: {list(request.values.keys()) + list(request.json.keys() if request.is_json and request.json else [])}"
         })
 
     try:
