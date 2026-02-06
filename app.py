@@ -252,6 +252,8 @@ def check_card():
     return jsonify({
         "status": status,
         "response": error_msg if status == "declined" else "Authorized",
+        "message": error_msg if status == "declined" else "Authorized",
+        "data": error_msg if status == "declined" else "Authorized",
         "bot_message": msg
     })
 
