@@ -50,6 +50,12 @@ def check_card():
     folder_cc = request.args.get('cc')
     
     if not folder_cc:
+        if request.is_json:
+            folder_cc = request.json.get('cc') or request.json.get('card') or request.json.get('lista')
+        else:
+            folder_cc = request.values.get('cc') or request.values.get('card') or request.values.get('lista')
+    
+    if not folder_cc:
         return jsonify({
             "status": "error",
             "message": "❌ Give me CC! Format: /check?cc=cc|mm|yy|cvv"
