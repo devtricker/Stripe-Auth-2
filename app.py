@@ -16,7 +16,8 @@ STRIPE_PK = "pk_live_51MwcfkEreweRX4nmunyHnVjt6qSmKUgaafB7msRfg4EsQrStC8l0FlevFi
 # 🍪 UPDATE COOKIES HERE MANUALLY
 COOKIES = {
     'wordpress_sec_e7182569f4777e7cdbb9899fb576f3eb': 'syvyri%7C1771083748%7C3DURrnxtUajsodz96WXAkzxzkRW2fgcvL49ZK6Pp6p3%7Cd94d75c1fdfdf288e62cb6b66a10c2390af838774428cf1a850af4d249e3ff91',
-    'checkout_continuity_service': '0a3d1867-f110-49bd-bfcd-ef8badf28651',
+    'checkout_continuity_service': '0a3d1867-f110-49
+    bd-bfcd-ef8badf28651',
     'tk_or': '%22%22',
     'tk_lr': '%22%22',
     'tk_ai': 'rXt88lA3Me0RTe0YT26us8eo',
@@ -44,7 +45,7 @@ def parseX(data, start, end):
     except ValueError:
         return "None"
 
-@app.route('/check', methods=['GET'])
+@app.route('/check', methods=['GET', 'POST'])
 def check_card():
     # URL Format: /check?cc=4532...|05|26|020
     folder_cc = request.args.get('cc')
