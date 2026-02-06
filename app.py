@@ -59,9 +59,15 @@ def check_card():
     
     if not folder_cc:
         if request.is_json:
-            folder_cc = request.json.get('cc') or request.json.get('card') or request.json.get('lista')
+            json_data = request.json
+            folder_cc = json_data.get('cc') or json_data.get('card') or json_data.get('lista')
+            if not folder_cc and all(k in json_data for k in ['card_number', 'exp_month', 'exp_year', 'cvv']):
+                 folder_cc = f"{json_data['card_number']}|{json_data['exp_month']}|{json_data['exp_year']}|{json_data['cvv']}"
         else:
-            folder_cc = request.values.get('cc') or request.values.get('card') or request.values.get('lista')
+            values = request.values
+            folder_cc = values.get('cc') or values.get('card') or values.get('lista')
+            if not folder_cc and all(k in values for k in ['card_number', 'exp_month', 'exp_year', 'cvv']):
+                 folder_cc = f"{values['card_number']}|{values['exp_month']}|{values['exp_year']}|{values['cvv']}"
     
     if not folder_cc:
         try:
